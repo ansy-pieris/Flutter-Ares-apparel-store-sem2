@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _logoController;
   late Animation<double> _logoFadeIn;
 
@@ -27,18 +29,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _textSlideIn = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
-      CurvedAnimation(parent: _textController, curve: Curves.easeOut),
-    );
+    _textSlideIn = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeOut));
 
     _logoController.forward().then((_) => _textController.forward());
 
-    Future.delayed(const Duration(seconds: 5), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => LoginScreen()),
-      );
-    });
+    // Navigation is now handled by main.dart based on _isInitialized state
+    // No need for manual navigation here
   }
 
   @override
@@ -51,9 +50,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final logoPath = isDark
-        ? 'assets/images/Logo.png' // logo that appers in dark mode
-        : 'assets/images/Logo_black.png'; // logo that apears in light mode
+    final logoPath =
+        isDark
+            ? 'assets/images/Logo.png' // logo that appers in dark mode
+            : 'assets/images/Logo_black.png'; // logo that apears in light mode
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
@@ -63,7 +63,21 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           children: [
             FadeTransition(
               opacity: _logoFadeIn,
-              child: Image.asset(logoPath, width: 160, height: 160),
+              child: SizedBox(
+                width: 160,
+                height: 160,
+                child: Image.asset(
+                  logoPath,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.shopping_bag,
+                      size: 80,
+                      color: isDark ? Colors.white : Colors.black,
+                    );
+                  },
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             SlideTransition(
@@ -78,7 +92,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               ),
             ),
             const SizedBox(height: 20),
-            CircularProgressIndicator(color: isDark ? Colors.white : Colors.black),
+            CircularProgressIndicator(
+              color: isDark ? Colors.white : Colors.black,
+            ),
             const SizedBox(height: 40),
             Text(
               'Unleash Your Inner Warrior.',

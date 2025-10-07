@@ -1,47 +1,93 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/material.dart' as material;
+import 'package:provider/provider.dart';
+import '../providers/product_provider.dart';
 import '../widgets/product_card.dart';
-import '../models/product.dart';
 import 'product_detail_screen.dart';
 
-class MenProductsScreen extends StatelessWidget {
-  final List<Product> products = [
-    Product(name: 'Men T-Shirt', price: 1999.0, image: 'assets/images/shirt.jpg'),
-    Product(name: 'Mens Jeans', price: 2999.0, image: 'assets/images/jeans.jpg'),
-    Product(name: 'Jacket', price: 3599.0, image: 'assets/images/jacket.jpg'),
-    Product(name: 'Shirt', price: 2599.0, image: 'assets/images/shirts1.jpg'),
-    Product(name: 'Shorts', price: 1599.0, image: 'assets/images/shorts.jpg'),
-    Product(name: 'Blazer', price: 4999.0, image: 'assets/images/blazer.jpg'),
-  ];
+/// MenProductsScreen displays men's clothing category products
+///
+/// This screen demonstrates:
+/// - Gender-specific product filtering using ProductProvider API
+/// - Responsive grid layout for different orientations
+/// - Integration with enhanced ProductCard and ProductDetailScreen
+/// - Material 3 theming with proper navigation
+class MenProductsScreen extends StatefulWidget {
+  const MenProductsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<MenProductsScreen> createState() => _MenProductsScreenState();
+}
+
+class _MenProductsScreenState extends State<MenProductsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final productProvider = Provider.of<ProductProvider>(
+        context,
+        listen: false,
+      );
+      productProvider.setCategory('Men');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Men's Products"), centerTitle: true),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(12),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isLandscape ? 3 : 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.7,
-        ),
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          final product = products[index];
-          return ProductCard(
-            product: product,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailScreen(
-                    name: product.name,
-                    price: product.price,
-                    image: product.image,
+      appBar: AppBar(
+        title: const material.Text("Men's Clothing"),
+        centerTitle: true,
+      ),
+      body: Consumer<ProductProvider>(
+        builder: (context, productProvider, child) {
+          if (productProvider.isLoading &&
+              productProvider.filteredProducts.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (productProvider.errorMessage != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  material.Text(productProvider.errorMessage!),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => productProvider.refreshProducts(),
+                    child: const material.Text('Retry'),
                   ),
-                ),
+                ],
+              ),
+            );
+          }
+
+          final products = productProvider.filteredProducts;
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isLandscape ? 3 : 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.7,
+            ),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return ProductCard(
+                product: product,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(product: product),
+                    ),
+                  );
+                },
               );
             },
           );

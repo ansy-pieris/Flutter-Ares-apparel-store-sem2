@@ -1,5 +1,6 @@
-import 'package:apparel_store/screens/main_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -12,14 +13,58 @@ class _LoginFormState extends State<LoginForm> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => MainNavigation()),
-      );
-    } 
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final email = emailController.text.trim();
+        final password = passwordController.text;
+
+        // Call AuthProvider login method with actual credentials
+        final success = await Provider.of<AuthProvider>(
+          context,
+          listen: false,
+        ).login(email, password);
+
+        if (!success && mounted) {
+          // Show error from auth provider
+          final authProvider = Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.errorMessage ?? 'Login failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+
+        // Navigation will be handled automatically by main.dart Consumer<AuthProvider>
+        // No need for manual navigation here
+      } catch (error) {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
 
   @override
@@ -50,7 +95,8 @@ class _LoginFormState extends State<LoginForm> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Enter your password';
-              if (value.length < 6) return 'Password must be at least 6 characters';
+              if (value.length < 6)
+                return 'Password must be at least 6 characters';
               return null;
             },
           ),
@@ -58,12 +104,27 @@ class _LoginFormState extends State<LoginForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _handleLogin,
+              onPressed: _isLoading ? null : _handleLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text("Login", style: TextStyle(color: Colors.white)),
+              child:
+                  _isLoading
+                      ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                      : const Text(
+                        "Login",
+                        style: TextStyle(color: Colors.white),
+                      ),
             ),
           ),
         ],

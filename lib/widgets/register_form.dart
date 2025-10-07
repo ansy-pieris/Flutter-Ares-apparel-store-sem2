@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class RegisterForm extends StatefulWidget {
   const RegisterForm({super.key});
@@ -13,39 +15,97 @@ class _RegisterFormState extends State<RegisterForm> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
-void _handleRegister() {
-  if (_formKey.currentState!.validate()) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registration successful!')),
-    );
+  void _handleRegister() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
 
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pop(context); 
-    });
+      try {
+        final name = nameController.text.trim();
+        final email = emailController.text.trim();
+        final password = passwordController.text;
+        final confirmPassword = confirmPasswordController.text;
+
+        // Call AuthProvider register method with actual credentials
+        final success = await Provider.of<AuthProvider>(
+          context,
+          listen: false,
+        ).register(name, email, password, confirmPassword);
+
+        if (success) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Registration successful!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            // Navigation will be handled automatically by main.dart Consumer<AuthProvider>
+            Navigator.pop(context);
+          }
+        } else {
+          if (mounted) {
+            // Show error from auth provider
+            final authProvider = Provider.of<AuthProvider>(
+              context,
+              listen: false,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  authProvider.errorMessage ?? 'Registration failed',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Registration failed: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-
     return Form(
       key: _formKey,
       child: Column(
         children: [
           TextFormField(
             controller: nameController,
-            decoration: const InputDecoration(labelText: "Full Name", border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Enter your name' : null,
+            decoration: const InputDecoration(
+              labelText: "Full Name",
+              border: OutlineInputBorder(),
+            ),
+            validator:
+                (value) =>
+                    value == null || value.isEmpty ? 'Enter your name' : null,
           ),
           const SizedBox(height: 20),
 
           TextFormField(
             controller: emailController,
-            decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: "Email",
+              border: OutlineInputBorder(),
+            ),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Enter your email';
               if (!value.contains('@')) return 'Enter a valid email';
@@ -57,10 +117,14 @@ void _handleRegister() {
           TextFormField(
             controller: passwordController,
             obscureText: true,
-            decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: "Password",
+              border: OutlineInputBorder(),
+            ),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Enter a password';
-              if (value.length < 6) return 'Password must be at least 6 characters';
+              if (value.length < 6)
+                return 'Password must be at least 6 characters';
               return null;
             },
           ),
@@ -69,10 +133,15 @@ void _handleRegister() {
           TextFormField(
             controller: confirmPasswordController,
             obscureText: true,
-            decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: "Confirm Password",
+              border: OutlineInputBorder(),
+            ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Confirm your password';
-              if (value != passwordController.text) return 'Passwords do not match';
+              if (value == null || value.isEmpty)
+                return 'Confirm your password';
+              if (value != passwordController.text)
+                return 'Passwords do not match';
               return null;
             },
           ),
@@ -81,12 +150,27 @@ void _handleRegister() {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _handleRegister,
+              onPressed: _isLoading ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text("Register", style: TextStyle(color: Colors.white)),
+              child:
+                  _isLoading
+                      ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                      : const Text(
+                        "Register",
+                        style: TextStyle(color: Colors.white),
+                      ),
             ),
           ),
         ],

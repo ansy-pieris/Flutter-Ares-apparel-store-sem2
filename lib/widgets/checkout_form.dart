@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
 class CheckoutForm extends StatefulWidget {
-  final void Function(String fullName, String address, String phone, String paymentMethod) onSubmit;
+  final void Function(
+    String fullName,
+    String address,
+    String phone,
+    String paymentMethod,
+  )?
+  onSubmit;
 
   const CheckoutForm({super.key, required this.onSubmit});
 
@@ -17,9 +23,9 @@ class _CheckoutFormState extends State<CheckoutForm> {
   String paymentMethod = 'Cash on Delivery';
 
   void _submit() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && widget.onSubmit != null) {
       _formKey.currentState!.save();
-      widget.onSubmit(fullName, address, phone, paymentMethod);
+      widget.onSubmit!(fullName, address, phone, paymentMethod);
     }
   }
 
@@ -32,7 +38,10 @@ class _CheckoutFormState extends State<CheckoutForm> {
       child: ListView(
         shrinkWrap: true,
         children: [
-          Text("Shipping Details", style: textStyle?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            "Shipping Details",
+            style: textStyle?.copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           TextFormField(
             decoration: const InputDecoration(labelText: 'Full Name'),
@@ -50,7 +59,8 @@ class _CheckoutFormState extends State<CheckoutForm> {
             decoration: const InputDecoration(labelText: 'Phone Number'),
             keyboardType: TextInputType.phone,
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Enter your phone number';
+              if (value == null || value.isEmpty)
+                return 'Enter your phone number';
               if (!RegExp(r'^\d{10}$').hasMatch(value)) {
                 return 'Phone number must be exactly 10 digits';
               }
@@ -60,7 +70,10 @@ class _CheckoutFormState extends State<CheckoutForm> {
           ),
           const SizedBox(height: 20),
 
-          Text("Payment Method", style: textStyle?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            "Payment Method",
+            style: textStyle?.copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 10),
           RadioListTile<String>(
             title: const Text('Cash on Delivery'),
@@ -77,7 +90,7 @@ class _CheckoutFormState extends State<CheckoutForm> {
 
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _submit,
+            onPressed: widget.onSubmit != null ? _submit : null,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),

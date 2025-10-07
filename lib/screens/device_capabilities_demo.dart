@@ -87,14 +87,17 @@ class _DeviceCapabilitiesDemoState extends State<DeviceCapabilitiesDemo> {
       _locationStatus = 'Fetching location...';
     });
 
-    final position = await _geolocationService.getCurrentPosition();
-    setState(() {
-      if (position != null) {
-        _locationStatus = _geolocationService.formatPosition(position);
-      } else {
-        _locationStatus = 'Failed to get location';
-      }
-    });
+    try {
+      // Get current location address instead of just coordinates
+      final address = await _geolocationService.getCurrentLocationAddress();
+      setState(() {
+        _locationStatus = address;
+      });
+    } catch (e) {
+      setState(() {
+        _locationStatus = 'Failed to get location: $e';
+      });
+    }
   }
 
   // Camera functions

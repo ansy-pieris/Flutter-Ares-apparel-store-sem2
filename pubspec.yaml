@@ -32,14 +32,19 @@ dependencies:
   flutter:
     sdk: flutter
   
+  # HTTP client for API calls
+  http: ^1.1.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   carousel_slider: ^5.1.1
+  provider: ^6.1.2
+  shared_preferences: ^2.2.3
   
   # Device capability services
   geolocator: ^12.0.0
+  geocoding: ^3.0.0
   image_picker: ^1.1.2
   sensors_plus: ^6.0.1
   battery_plus: ^6.0.2

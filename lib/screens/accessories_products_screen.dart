@@ -1,47 +1,94 @@
-import 'package:flutter/material.dart';
-import '../models/product.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/material.dart' as material;
+import 'package:provider/provider.dart';
+import '../providers/product_provider.dart';
 import '../widgets/product_card.dart';
 import 'product_detail_screen.dart';
 
-class AccessoriesProductsScreen extends StatelessWidget {
-  final List<Product> products = [
-    Product(name: 'Watch', price: 2499.0, image: 'assets/images/watch.jpg'),
-    Product(name: 'Sunglasses', price: 1999.0, image: 'assets/images/sun.jpg'),
-    Product(name: 'Wallets', price: 1599.0, image: 'assets/images/wallet.webp'),
-    Product(name: 'Caps', price: 799.0, image: 'assets/images/cap.jpg'),
-    Product(name: 'Stylish Bracelets', price: 1299.0, image: 'assets/images/brace.webp'),
-    Product(name: 'Stylish Rings', price: 999.0, image: 'assets/images/ring.webp'),
-  ];
+/// AccessoriesProductsScreen displays accessories category products
+///
+/// This screen demonstrates:
+/// - Category-specific product filtering using ProductProvider API
+/// - Responsive grid layout for different orientations
+/// - Integration with enhanced ProductCard and ProductDetailScreen
+/// - Material 3 theming with proper navigation
+class AccessoriesProductsScreen extends StatefulWidget {
+  const AccessoriesProductsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<AccessoriesProductsScreen> createState() =>
+      _AccessoriesProductsScreenState();
+}
+
+class _AccessoriesProductsScreenState extends State<AccessoriesProductsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final productProvider = Provider.of<ProductProvider>(
+        context,
+        listen: false,
+      );
+      productProvider.setCategory('Accessories');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Accessories"), centerTitle: true),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(12),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isLandscape ? 3 : 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.7,
-        ),
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          final product = products[index];
-          return ProductCard(
-            product: product,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailScreen(
-                    name: product.name,
-                    price: product.price,
-                    image: product.image,
+      appBar: AppBar(
+        title: const material.Text("Accessories"),
+        centerTitle: true,
+      ),
+      body: Consumer<ProductProvider>(
+        builder: (context, productProvider, child) {
+          if (productProvider.isLoading &&
+              productProvider.filteredProducts.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (productProvider.errorMessage != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  material.Text(productProvider.errorMessage!),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => productProvider.refreshProducts(),
+                    child: const material.Text('Retry'),
                   ),
-                ),
+                ],
+              ),
+            );
+          }
+
+          final products = productProvider.filteredProducts;
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isLandscape ? 3 : 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.7,
+            ),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return ProductCard(
+                product: product,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(product: product),
+                    ),
+                  );
+                },
               );
             },
           );
