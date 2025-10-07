@@ -151,26 +151,19 @@ class _RegisterFormState extends State<RegisterForm> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleRegister,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
               child:
                   _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                            Theme.of(context).colorScheme.onPrimary,
                           ),
                         ),
                       )
-                      : const Text(
-                        "Register",
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      : const Text("Register"),
             ),
           ),
         ],

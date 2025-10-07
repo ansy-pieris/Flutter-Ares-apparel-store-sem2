@@ -161,6 +161,8 @@ class CartProvider with ChangeNotifier {
 
               final cartItem = CartItem(
                 id: productId,
+                cartItemId:
+                    item['id']?.toString(), // Store backend cart item ID
                 title: productName,
                 price: productPrice,
                 quantity: quantity,
@@ -202,6 +204,7 @@ class CartProvider with ChangeNotifier {
           product.id,
           (existingCartItem) => CartItem(
             id: existingCartItem.id,
+            cartItemId: existingCartItem.cartItemId,
             title: existingCartItem.title,
             price: existingCartItem.price,
             quantity: existingCartItem.quantity + quantity,
@@ -214,6 +217,7 @@ class CartProvider with ChangeNotifier {
           product.id,
           () => CartItem(
             id: product.id,
+            cartItemId: null, // Will be set when loaded from backend
             title: product.name,
             price: product.price,
             quantity: quantity,
@@ -224,22 +228,35 @@ class CartProvider with ChangeNotifier {
 
       debugPrint('✅ Item added to local cart: ${product.name} x$quantity');
 
-      // Try to sync with backend if user is logged in
-      try {
-        final response = await _apiService.addToCart(
-          productId: product.id,
-          quantity: quantity,
-        );
+      notifyListeners(); // Update UI immediately after local changes
 
-        if (response.success) {
-          debugPrint('✅ Cart synced with backend successfully');
-        } else {
-          debugPrint(
-            '⚠️ Backend sync failed, cart works offline: ${response.error}',
+      // Sync with backend if user is logged in
+      final token = await _apiService.getToken();
+      if (token != null) {
+        try {
+          debugPrint('🌐 Syncing add to cart with backend...');
+          final response = await _apiService.addToCart(
+            productId: product.id,
+            quantity: quantity,
           );
+
+          debugPrint('📡 Add to cart API response:');
+          debugPrint('  - Success: ${response.success}');
+          debugPrint('  - Error: ${response.error}');
+          debugPrint('  - Status Code: ${response.statusCode}');
+
+          if (response.success) {
+            debugPrint('✅ Add to cart synced with backend successfully');
+          } else {
+            debugPrint('❌ Backend sync failed: ${response.error}');
+            _error = 'Failed to sync cart with server: ${response.error}';
+          }
+        } catch (e) {
+          debugPrint('❌ Backend sync exception: $e');
+          _error = 'Network error syncing cart';
         }
-      } catch (e) {
-        debugPrint('⚠️ Backend sync failed, cart works offline: $e');
+      } else {
+        debugPrint('⚠️ User not authenticated - cart working offline only');
       }
     } catch (e) {
       _error = 'Error adding item to cart: $e';
@@ -267,6 +284,7 @@ class CartProvider with ChangeNotifier {
           productId,
           (existingCartItem) => CartItem(
             id: existingCartItem.id,
+            cartItemId: existingCartItem.cartItemId,
             title: existingCartItem.title,
             price: existingCartItem.price,
             quantity: newQuantity,
@@ -277,8 +295,12 @@ class CartProvider with ChangeNotifier {
 
         // Try to sync with backend
         try {
+          // Use cart item ID if available, otherwise use product ID
+          final itemIdToUpdate = _items[productId]?.cartItemId ?? productId;
+          debugPrint('📋 Using cart item ID for decrease: $itemIdToUpdate');
+
           final response = await _apiService.updateCartItem(
-            productId: productId,
+            cartItemId: itemIdToUpdate,
             quantity: newQuantity,
           );
           if (response.success) {
@@ -324,38 +346,88 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Update quantity of specific product in cart
+  /// Update quantity of specific product in cart with improved database synchronization
   Future<void> updateQuantity(String productId, int newQuantity) async {
-    if (!_items.containsKey(productId)) return;
+    if (!_items.containsKey(productId)) {
+      debugPrint('❌ Product $productId not found in cart');
+      return;
+    }
 
     _setLoading(true);
     _error = null;
 
     try {
+      debugPrint(
+        '🔄 Updating cart quantity for product $productId to $newQuantity',
+      );
+
+      // Check authentication first
+      final token = await _apiService.getToken();
+      if (token == null) {
+        debugPrint('⚠️ User not authenticated - working offline only');
+      }
+
       if (newQuantity <= 0) {
+        // Store original item for potential rollback
+        final originalItem = _items[productId];
+
         // Remove item locally first
         _items.remove(productId);
         debugPrint('✅ Item removed from local cart (quantity = 0)');
+        notifyListeners(); // Update UI immediately
 
-        // Try to sync with backend
-        try {
-          final response = await _apiService.removeFromCart(productId);
-          if (response.success) {
-            debugPrint('✅ Item removal synced with backend');
-          } else {
-            debugPrint(
-              '⚠️ Backend sync failed, cart works offline: ${response.error}',
-            );
+        // Sync with backend
+        if (token != null) {
+          try {
+            debugPrint('🌐 Syncing item removal with backend...');
+
+            // Use cart item ID if available, otherwise use product ID
+            final itemIdToRemove = originalItem?.cartItemId ?? productId;
+            debugPrint('🗑️ Using cart item ID for removal: $itemIdToRemove');
+
+            final response = await _apiService.removeFromCart(itemIdToRemove);
+
+            debugPrint('📡 Remove from cart API response:');
+            debugPrint('  - Success: ${response.success}');
+            debugPrint('  - Error: ${response.error}');
+            debugPrint('  - Status Code: ${response.statusCode}');
+
+            if (response.success) {
+              debugPrint('✅ Item removal synced with backend successfully');
+            } else {
+              debugPrint('❌ Backend sync failed: ${response.error}');
+              // Rollback local changes if backend fails
+              if (originalItem != null) {
+                _items[productId] = originalItem;
+                debugPrint(
+                  '🔄 Rolled back local changes due to backend failure',
+                );
+                notifyListeners();
+                _error = 'Failed to remove item from cart: ${response.error}';
+              }
+            }
+          } catch (e) {
+            debugPrint('❌ Backend sync exception: $e');
+            // Rollback local changes if backend fails
+            if (originalItem != null) {
+              _items[productId] = originalItem;
+              debugPrint('🔄 Rolled back local changes due to sync error');
+              notifyListeners();
+              _error = 'Network error removing item from cart';
+            }
           }
-        } catch (e) {
-          debugPrint('⚠️ Backend sync failed, cart works offline: $e');
         }
       } else {
+        // Store original quantity for potential rollback
+        final originalItem = _items[productId];
+        final originalQuantity = originalItem?.quantity ?? 0;
+
         // Update quantity locally first
         _items.update(
           productId,
           (existingCartItem) => CartItem(
             id: existingCartItem.id,
+            cartItemId: existingCartItem.cartItemId,
             title: existingCartItem.title,
             price: existingCartItem.price,
             quantity: newQuantity,
@@ -363,22 +435,69 @@ class CartProvider with ChangeNotifier {
           ),
         );
         debugPrint('✅ Item quantity updated locally to $newQuantity');
+        notifyListeners(); // Update UI immediately
 
-        // Try to sync with backend
-        try {
-          final response = await _apiService.updateCartItem(
-            productId: productId,
-            quantity: newQuantity,
-          );
-          if (response.success) {
-            debugPrint('✅ Quantity update synced with backend');
-          } else {
-            debugPrint(
-              '⚠️ Backend sync failed, cart works offline: ${response.error}',
+        // Sync with backend
+        if (token != null) {
+          try {
+            debugPrint('🌐 Syncing quantity update with backend...');
+
+            // Use cart item ID if available, otherwise use product ID
+            final itemIdToUpdate = _items[productId]?.cartItemId ?? productId;
+            debugPrint('📋 Using cart item ID for update: $itemIdToUpdate');
+
+            final response = await _apiService.updateCartItem(
+              cartItemId: itemIdToUpdate,
+              quantity: newQuantity,
             );
+
+            debugPrint('📡 Update cart item API response:');
+            debugPrint('  - Success: ${response.success}');
+            debugPrint('  - Error: ${response.error}');
+            debugPrint('  - Status Code: ${response.statusCode}');
+
+            if (response.success) {
+              debugPrint('✅ Quantity update synced with backend successfully');
+            } else {
+              debugPrint('❌ Backend sync failed: ${response.error}');
+              // Rollback local changes if backend fails
+              _items.update(
+                productId,
+                (existingCartItem) => CartItem(
+                  id: existingCartItem.id,
+                  cartItemId: existingCartItem.cartItemId,
+                  title: existingCartItem.title,
+                  price: existingCartItem.price,
+                  quantity: originalQuantity,
+                  imageUrl: existingCartItem.imageUrl,
+                ),
+              );
+              debugPrint(
+                '🔄 Rolled back quantity to $originalQuantity due to backend failure',
+              );
+              notifyListeners();
+              _error = 'Failed to update cart: ${response.error}';
+            }
+          } catch (e) {
+            debugPrint('❌ Backend sync exception: $e');
+            // Rollback local changes if backend fails
+            _items.update(
+              productId,
+              (existingCartItem) => CartItem(
+                id: existingCartItem.id,
+                cartItemId: existingCartItem.cartItemId,
+                title: existingCartItem.title,
+                price: existingCartItem.price,
+                quantity: originalQuantity,
+                imageUrl: existingCartItem.imageUrl,
+              ),
+            );
+            debugPrint(
+              '🔄 Rolled back quantity to $originalQuantity due to sync error',
+            );
+            notifyListeners();
+            _error = 'Network error updating cart';
           }
-        } catch (e) {
-          debugPrint('⚠️ Backend sync failed, cart works offline: $e');
         }
       }
     } catch (e) {
@@ -389,32 +508,101 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  /// Clear entire cart
+  /// Clear entire cart with proper database synchronization
   Future<void> clearCart() async {
     _setLoading(true);
     _error = null;
 
     try {
+      // Store original cart for potential rollback
+      final originalItems = Map<String, CartItem>.from(_items);
+
       // Clear local cart first
       _items.clear();
       debugPrint('✅ Local cart cleared successfully');
+      notifyListeners(); // Update UI immediately
 
-      // Try to sync with backend
-      try {
-        final response = await _apiService.clearCart();
-        if (response.success) {
-          debugPrint('✅ Cart clear synced with backend');
-        } else {
-          debugPrint(
-            '⚠️ Backend sync failed, cart works offline: ${response.error}',
-          );
+      // Sync with backend if user is authenticated
+      final token = await _apiService.getToken();
+      if (token != null) {
+        try {
+          debugPrint('🌐 Syncing cart clear with backend...');
+          final response = await _apiService.clearCart();
+
+          debugPrint('📡 Clear cart API response:');
+          debugPrint('  - Success: ${response.success}');
+          debugPrint('  - Error: ${response.error}');
+          debugPrint('  - Status Code: ${response.statusCode}');
+
+          if (response.success) {
+            debugPrint('✅ Cart clear synced with backend successfully');
+          } else {
+            debugPrint('❌ Backend sync failed: ${response.error}');
+            // Rollback if backend fails
+            _items.addAll(originalItems);
+            notifyListeners();
+            _error = 'Failed to clear cart: ${response.error}';
+          }
+        } catch (e) {
+          debugPrint('❌ Backend sync exception: $e');
+          // Rollback if backend fails
+          _items.addAll(originalItems);
+          notifyListeners();
+          _error = 'Network error clearing cart';
         }
-      } catch (e) {
-        debugPrint('⚠️ Backend sync failed, cart works offline: $e');
+      } else {
+        debugPrint('⚠️ User not authenticated - cart cleared locally only');
       }
     } catch (e) {
       _error = 'Error clearing cart: $e';
       debugPrint('❌ Error clearing cart: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Force synchronization with backend cart
+  Future<void> forceSyncWithBackend() async {
+    debugPrint('🔄 Force syncing cart with backend...');
+    final token = await _apiService.getToken();
+
+    if (token == null) {
+      debugPrint('⚠️ Cannot sync - user not authenticated');
+      return;
+    }
+
+    _setLoading(true);
+    _error = null;
+
+    try {
+      // First, try to load cart from backend
+      await loadCartFromBackend();
+
+      // If local cart has items that aren't in backend, sync them
+      if (_items.isNotEmpty) {
+        debugPrint('🔄 Syncing local cart items to backend...');
+        for (final item in _items.values) {
+          try {
+            final response = await _apiService.addToCart(
+              productId: item.id,
+              quantity: item.quantity,
+            );
+
+            if (response.success) {
+              debugPrint('✅ Synced ${item.title} to backend');
+            } else {
+              debugPrint('❌ Failed to sync ${item.title}: ${response.error}');
+            }
+          } catch (e) {
+            debugPrint('❌ Error syncing ${item.title}: $e');
+          }
+        }
+      }
+
+      debugPrint('✅ Cart synchronization completed');
+    } catch (e) {
+      _error = 'Error syncing cart: $e';
+      debugPrint('❌ Error syncing cart: $e');
     } finally {
       _setLoading(false);
     }
@@ -452,7 +640,8 @@ class CartProvider with ChangeNotifier {
 /// Cart item model class
 /// Represents individual items stored in the shopping cart
 class CartItem {
-  final String id;
+  final String id; // Product ID (used as key in local storage)
+  final String? cartItemId; // Backend cart item ID (for updates/deletes)
   final String title;
   final double price;
   final int quantity;
@@ -460,6 +649,7 @@ class CartItem {
 
   CartItem({
     required this.id,
+    this.cartItemId,
     required this.title,
     required this.price,
     required this.quantity,
@@ -472,6 +662,7 @@ class CartItem {
   /// Create copy of cart item with updated values
   CartItem copyWith({
     String? id,
+    String? cartItemId,
     String? title,
     double? price,
     int? quantity,
@@ -479,10 +670,59 @@ class CartItem {
   }) {
     return CartItem(
       id: id ?? this.id,
+      cartItemId: cartItemId ?? this.cartItemId,
       title: title ?? this.title,
       price: price ?? this.price,
       quantity: quantity ?? this.quantity,
       imageUrl: imageUrl ?? this.imageUrl,
     );
+  }
+
+  /// Create CartItem from JSON data
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    // Handle nested product structure from API response
+    if (json['product'] != null) {
+      final product = json['product'] as Map<String, dynamic>;
+      return CartItem(
+        id: product['id']?.toString() ?? '', // Product ID
+        cartItemId: json['id']?.toString(), // Cart item ID from backend
+        title: product['name']?.toString() ?? '',
+        price: double.tryParse(product['price']?.toString() ?? '0') ?? 0.0,
+        quantity: int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
+        imageUrl: product['image']?.toString() ?? '',
+      );
+    } else {
+      // Handle direct item format
+      return CartItem(
+        id: json['product_id']?.toString() ?? json['id']?.toString() ?? '',
+        cartItemId: json['cart_item_id']?.toString() ?? json['id']?.toString(),
+        title:
+            json['product_name']?.toString() ?? json['name']?.toString() ?? '',
+        price:
+            double.tryParse(
+              json['unit_price']?.toString() ??
+                  json['price']?.toString() ??
+                  '0',
+            ) ??
+            0.0,
+        quantity: int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
+        imageUrl:
+            json['product_image']?.toString() ??
+            json['image']?.toString() ??
+            '',
+      );
+    }
+  }
+
+  /// Convert CartItem to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'cart_item_id': cartItemId,
+      'title': title,
+      'price': price,
+      'quantity': quantity,
+      'imageUrl': imageUrl,
+    };
   }
 }

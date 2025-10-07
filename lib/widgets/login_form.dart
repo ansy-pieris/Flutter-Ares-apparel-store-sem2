@@ -105,26 +105,19 @@ class _LoginFormState extends State<LoginForm> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
               child:
                   _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                            Theme.of(context).colorScheme.onPrimary,
                           ),
                         ),
                       )
-                      : const Text(
-                        "Login",
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      : const Text("Login"),
             ),
           ),
         ],

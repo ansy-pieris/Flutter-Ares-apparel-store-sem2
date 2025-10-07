@@ -7,32 +7,29 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final iconColor = isDark ? Colors.white : Colors.black;
-    final bgColor = isDark ? Colors.black : Colors.white;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        title: const Text("Login"),
-        centerTitle: true,
-        backgroundColor: isDark ? Colors.grey[900] : Colors.black,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text("Login"), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: ListView(
           children: [
-            Icon(Icons.shopping_bag, size: 80, color: iconColor),
+            Icon(
+              Icons.shopping_bag,
+              size: 80,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(height: 20),
             Text(
               "Welcome Back to ARES!",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 30),
-            const LoginForm(), 
+            const LoginForm(),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () {
@@ -43,7 +40,9 @@ class LoginScreen extends StatelessWidget {
               },
               child: Text(
                 "Don't have an account? Register",
-                style: TextStyle(color: textColor, fontSize: 14),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ),
           ],

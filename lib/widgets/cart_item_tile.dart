@@ -68,7 +68,7 @@ class CartItemTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'LKR ${price.toStringAsFixed(2)}',
+                    'Rs. ${price.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: theme.primaryColor,
                       fontWeight: FontWeight.w600,

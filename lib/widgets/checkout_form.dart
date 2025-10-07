@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/profile_provider.dart';
 
 class CheckoutForm extends StatefulWidget {
   final void Function(
@@ -17,15 +19,74 @@ class CheckoutForm extends StatefulWidget {
 
 class _CheckoutFormState extends State<CheckoutForm> {
   final _formKey = GlobalKey<FormState>();
-  String fullName = '';
-  String address = '';
-  String phone = '';
+  final _nameController = TextEditingController();
+  final _streetController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _postalController = TextEditingController();
+  final _phoneController = TextEditingController();
+
   String paymentMethod = 'Cash on Delivery';
+  bool _isLoadingProfile = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _streetController.dispose();
+    _cityController.dispose();
+    _postalController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  /// Load user profile data if available
+  Future<void> _loadUserProfile() async {
+    setState(() {
+      _isLoadingProfile = true;
+    });
+
+    try {
+      final profileProvider = Provider.of<ProfileProvider>(
+        context,
+        listen: false,
+      );
+      await profileProvider.fetchProfile();
+
+      final profile = profileProvider.userProfile;
+      if (profile != null) {
+        _nameController.text = profile.fullName;
+        _phoneController.text = profile.phone;
+        _streetController.text = profile.streetAddress;
+        _cityController.text = profile.city;
+        _postalController.text = profile.postalCode;
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+        });
+      }
+    }
+  }
 
   void _submit() {
     if (_formKey.currentState!.validate() && widget.onSubmit != null) {
-      _formKey.currentState!.save();
-      widget.onSubmit!(fullName, address, phone, paymentMethod);
+      // Combine address components into a formatted string
+      final fullAddress =
+          '${_streetController.text}, ${_cityController.text}, ${_postalController.text}';
+      widget.onSubmit!(
+        _nameController.text,
+        fullAddress,
+        _phoneController.text,
+        paymentMethod,
+      );
     }
   }
 
@@ -44,29 +105,51 @@ class _CheckoutFormState extends State<CheckoutForm> {
           ),
           const SizedBox(height: 16),
           TextFormField(
-            decoration: const InputDecoration(labelText: 'Full Name'),
-            validator: (value) => value!.isEmpty ? 'Enter your name' : null,
-            onSaved: (value) => fullName = value!,
+            controller: _nameController,
+            decoration: const InputDecoration(labelText: 'Recipient Name'),
+            validator:
+                (value) => value!.isEmpty ? 'Enter recipient name' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
-            decoration: const InputDecoration(labelText: 'Address'),
-            validator: (value) => value!.isEmpty ? 'Enter your address' : null,
-            onSaved: (value) => address = value!,
+            controller: _streetController,
+            decoration: const InputDecoration(
+              labelText: 'Street Address',
+              hintText: 'e.g., 123 Main Street, Apt 4B',
+            ),
+            validator:
+                (value) => value!.isEmpty ? 'Enter street address' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
+            controller: _cityController,
+            decoration: const InputDecoration(labelText: 'City'),
+            validator: (value) => value!.isEmpty ? 'Enter city' : null,
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _postalController,
+            decoration: const InputDecoration(
+              labelText: 'Postal Code',
+              hintText: 'e.g., 12345',
+            ),
+            keyboardType: TextInputType.number,
+            validator: (value) => value!.isEmpty ? 'Enter postal code' : null,
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _phoneController,
             decoration: const InputDecoration(labelText: 'Phone Number'),
             keyboardType: TextInputType.phone,
             validator: (value) {
-              if (value == null || value.isEmpty)
-                return 'Enter your phone number';
-              if (!RegExp(r'^\d{10}$').hasMatch(value)) {
-                return 'Phone number must be exactly 10 digits';
+              if (value == null || value.isEmpty) {
+                return 'Enter phone number';
+              }
+              if (value.length < 10) {
+                return 'Phone number must be at least 10 digits';
               }
               return null;
             },
-            onSaved: (value) => phone = value!,
           ),
           const SizedBox(height: 20),
 

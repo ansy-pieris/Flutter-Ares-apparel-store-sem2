@@ -6,8 +6,6 @@ class RegisterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(title: const Text("Register"), centerTitle: true),
       body: SingleChildScrollView(
@@ -18,7 +16,9 @@ class RegisterScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               "Create Your Account",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
             const RegisterForm(),
@@ -27,7 +27,9 @@ class RegisterScreen extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 "Already have an account? Login",
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ],

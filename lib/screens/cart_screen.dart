@@ -24,36 +24,93 @@ class CartScreen extends StatelessWidget {
       ),
       body: Consumer<CartProvider>(
         builder: (context, cartProvider, child) {
+          // Show loading indicator while cart is being loaded
+          if (cartProvider.isLoading && cartProvider.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading cart...'),
+                ],
+              ),
+            );
+          }
+
+          // Show error message if there's an error
+          if (cartProvider.error != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading cart',
+                    style: theme.textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    cartProvider.error!,
+                    style: theme.textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => cartProvider.loadCartFromBackend(),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           if (cartProvider.isEmpty) {
             return _buildEmptyCart(context);
           }
 
-          return Column(
+          return Stack(
             children: [
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: cartProvider.cartItems.length,
-                  itemBuilder: (context, index) {
-                    final cartItem = cartProvider.cartItems[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: CartItemTile(
-                        name: cartItem.title,
-                        price: cartItem.price,
-                        image: cartItem.imageUrl,
-                        quantity: cartItem.quantity,
-                        onRemove: () => cartProvider.removeItem(cartItem.id),
-                        onDecrease:
-                            () => _decreaseQuantity(cartProvider, cartItem),
-                        onIncrease:
-                            () => _increaseQuantity(cartProvider, cartItem),
-                      ),
-                    );
-                  },
-                ),
+              Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: cartProvider.cartItems.length,
+                      itemBuilder: (context, index) {
+                        final cartItem = cartProvider.cartItems[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: CartItemTile(
+                            name: cartItem.title,
+                            price: cartItem.price,
+                            image: cartItem.imageUrl,
+                            quantity: cartItem.quantity,
+                            onRemove:
+                                () => _removeItem(
+                                  context,
+                                  cartProvider,
+                                  cartItem,
+                                ),
+                            onDecrease:
+                                () => _decreaseQuantity(cartProvider, cartItem),
+                            onIncrease:
+                                () => _increaseQuantity(cartProvider, cartItem),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  _buildCartSummary(context, cartProvider),
+                ],
               ),
-              _buildCartSummary(context, cartProvider),
+              // Loading overlay when cart operations are in progress
+              if (cartProvider.isLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
             ],
           );
         },
@@ -116,15 +173,44 @@ class CartScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Summary rows
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total Items:', style: theme.textTheme.bodyLarge),
+              Text(
+                '${cartProvider.totalQuantity}',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Subtotal:', style: theme.textTheme.bodyLarge),
+              Text(
+                'Rs. ${cartProvider.totalAmount.toStringAsFixed(2)}',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total Items: ${cartProvider.itemCount}',
-                style: theme.textTheme.titleMedium,
+                'Total:',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
-                '\$${cartProvider.totalAmount.toStringAsFixed(2)}',
+                'Rs. ${cartProvider.totalAmount.toStringAsFixed(2)}',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.primary,
@@ -153,10 +239,49 @@ class CartScreen extends StatelessWidget {
     );
   }
 
+  void _removeItem(
+    BuildContext context,
+    CartProvider cartProvider,
+    dynamic cartItem,
+  ) {
+    // Show confirmation dialog before removing
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove Item'),
+          content: Text(
+            'Are you sure you want to remove "${cartItem.title}" from your cart?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                cartProvider.removeItem(cartItem.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${cartItem.title} removed from cart'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _decreaseQuantity(CartProvider cartProvider, dynamic cartItem) {
     if (cartItem.quantity > 1) {
       cartProvider.updateQuantity(cartItem.id, cartItem.quantity - 1);
     } else {
+      // If quantity is 1, show confirmation to remove
       cartProvider.removeItem(cartItem.id);
     }
   }

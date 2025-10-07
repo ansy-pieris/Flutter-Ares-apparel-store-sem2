@@ -16,6 +16,7 @@ import 'providers/theme_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/navigation_provider.dart';
+import 'providers/profile_provider.dart';
 
 // Import widgets
 import 'widgets/network_status_widget.dart';
@@ -78,13 +79,25 @@ class MyApp extends StatelessWidget {
         ),
 
         // Cart provider - manages shopping cart items and operations
-        ChangeNotifierProvider(create: (context) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (context) {
+            final cartProvider = CartProvider();
+            // Initialize cart when app starts
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              cartProvider.initializeCart();
+            });
+            return cartProvider;
+          },
+        ),
 
         // Product provider - manages product catalog and filtering
         ChangeNotifierProvider(create: (context) => ProductProvider()),
 
         // Navigation provider - manages bottom navigation state
         ChangeNotifierProvider(create: (context) => NavigationProvider()),
+
+        // Profile provider - manages user profile data and operations
+        ChangeNotifierProvider(create: (context) => ProfileProvider()),
       ],
 
       // Consumer to rebuild when theme changes

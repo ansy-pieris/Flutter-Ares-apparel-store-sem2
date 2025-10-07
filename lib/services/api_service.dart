@@ -94,6 +94,9 @@ class ApiService {
       } else {
         final message =
             data['message'] ?? data['error'] ?? 'Unknown error occurred';
+        debugPrint('API Error Response: ${response.body}');
+        debugPrint('Status Code: ${response.statusCode}');
+        debugPrint('Error Data: $data');
         return ApiResponse.error(message, response.statusCode);
       }
     } catch (e) {
@@ -260,31 +263,43 @@ class ApiService {
     return await get('/cart/count');
   }
 
-  /// Add item to cart
+  /// Add item to cart with proper field structure
   Future<ApiResponse> addToCart({
     required String productId,
     required int quantity,
   }) async {
+    debugPrint(
+      '🛒 Adding to cart - Product ID: $productId, Quantity: $quantity',
+    );
+
     return await post(
       '/cart/add',
-      body: {'product_id': productId, 'quantity': quantity},
+      body: {
+        'product_id': productId,
+        'quantity': quantity,
+        // Remove the cart_item_id as it might be causing confusion
+      },
     );
   }
 
-  /// Update cart item quantity
+  /// Update cart item quantity using cart item ID
   Future<ApiResponse> updateCartItem({
-    required String productId,
+    required String cartItemId, // Changed from productId to cartItemId
     required int quantity,
   }) async {
+    debugPrint(
+      '🔄 Updating cart item - Cart Item ID: $cartItemId, Quantity: $quantity',
+    );
+
     return await put(
-      '/cart/update',
-      body: {'product_id': productId, 'quantity': quantity},
+      '/cart/update/$cartItemId', // Use cart item ID in URL
+      body: {'quantity': quantity},
     );
   }
 
-  /// Remove item from cart
-  Future<ApiResponse> removeFromCart(String productId) async {
-    return await delete('/cart/remove?product_id=$productId');
+  /// Remove item from cart using cart item ID
+  Future<ApiResponse> removeFromCart(String cartItemId) async {
+    return await delete('/cart/remove/$cartItemId');
   }
 
   /// Clear entire cart
@@ -303,12 +318,25 @@ class ApiService {
     required String shippingAddress,
     required String paymentMethod,
   }) async {
+    // Parse the address string into components for the API
+    final addressParts = shippingAddress.split(', ');
+    final shippingAddressData = {
+      'street': addressParts.isNotEmpty ? addressParts[0] : shippingAddress,
+      'city': addressParts.length > 1 ? addressParts[1] : '',
+      'state': addressParts.length > 2 ? addressParts[2].split(' ')[0] : '',
+      'postal_code':
+          addressParts.length > 2 && addressParts[2].split(' ').length > 1
+              ? addressParts[2].split(' ')[1]
+              : '',
+      'country': 'Sri Lanka', // Default country
+    };
+
     return await post(
       '/checkout',
       body: {
         'customer_name': customerName,
         'customer_phone': customerPhone,
-        'shipping_address': shippingAddress,
+        'shipping_address': shippingAddressData,
         'payment_method': paymentMethod,
       },
     );
@@ -332,6 +360,58 @@ class ApiService {
   /// Track order by order number
   Future<ApiResponse> trackOrder(String orderNumber) async {
     return await get('/track/$orderNumber');
+  }
+
+  // ==========================================
+  // PROFILE API METHODS
+  // ==========================================
+
+  /// Get user profile information
+  Future<ApiResponse> getProfile() async {
+    debugPrint('🔄 Getting user profile from /profile endpoint...');
+    final response = await get('/profile');
+
+    // If /profile fails, try /user endpoint as fallback
+    if (!response.success && response.statusCode == 404) {
+      debugPrint('⚠️ /profile endpoint not found, trying /user...');
+      return await get('/user');
+    }
+
+    return response;
+  }
+
+  /// Update user profile information
+  Future<ApiResponse> updateProfile({
+    required String fullName,
+    required String phone,
+    required String streetAddress,
+    required String city,
+    required String postalCode,
+  }) async {
+    return await put(
+      '/profile',
+      body: {
+        'full_name': fullName,
+        'phone': phone,
+        'street_address': streetAddress,
+        'city': city,
+        'postal_code': postalCode,
+      },
+    );
+  }
+
+  /// Upload profile picture
+  Future<ApiResponse> uploadProfilePicture(String imagePath) async {
+    // This is a placeholder for profile picture upload
+    // In a real implementation, you would use multipart/form-data
+    return await post(
+      '/profile/picture',
+      body: {
+        'image_path': imagePath,
+        'message':
+            'Profile picture upload feature - implementation depends on backend requirements',
+      },
+    );
   }
 }
 

@@ -69,15 +69,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final bgColor = isDark ? Colors.black : Colors.white;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
         elevation: 0,
         centerTitle: false,
         title: Row(
@@ -150,10 +147,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
             material.Text(
               "Best Sellers",
-              style: TextStyle(
-                fontSize: 20,
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: textColor,
               ),
             ),
             const material.SizedBox(height: 10),
@@ -213,10 +208,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
             material.Text(
               "Featured Products",
-              style: TextStyle(
-                fontSize: 20,
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: textColor,
               ),
             ),
             const material.SizedBox(height: 10),

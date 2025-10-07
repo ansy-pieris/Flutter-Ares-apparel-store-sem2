@@ -28,6 +28,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     try {
+      debugPrint('🛒 Starting checkout process...');
+
       // Get cart information for order details
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
@@ -38,6 +40,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // Get total amount before clearing cart
       final totalAmount = cartProvider.totalAmount;
+      debugPrint('💰 Order total: \$${totalAmount.toStringAsFixed(2)}');
+      debugPrint('👤 Customer: $name');
+      debugPrint('📱 Phone: $phone');
+      debugPrint('📍 Address: $address');
+      debugPrint('💳 Payment: $paymentMethod');
+
+      // Check authentication
+      final token = await _apiService.getToken();
+      if (token == null) {
+        throw Exception('User not authenticated. Please login again.');
+      }
+
+      debugPrint('🔑 Token found, processing order...');
 
       // Process order through API
       final response = await _apiService.checkout(
@@ -47,9 +62,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         paymentMethod: paymentMethod,
       );
 
+      debugPrint(
+        '📡 Checkout API Response: ${response.success ? 'SUCCESS' : 'FAILED'}',
+      );
+      debugPrint('📊 Response data: ${response.data}');
+      debugPrint('🚨 Response error: ${response.error}');
+      debugPrint('🔍 Status Code: ${response.statusCode}');
+
       if (!response.success) {
         throw Exception(response.error ?? 'Order processing failed');
       }
+
+      debugPrint('✅ Order placed successfully, clearing cart...');
 
       // Clear the cart after successful order
       await cartProvider.clearCart();
@@ -121,13 +145,63 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       });
 
       if (mounted) {
+        String errorMessage =
+            'Sorry, there was an error processing your order. Please try again.';
+        String errorDetails = error.toString();
+
+        // Parse common errors for better user messages
+        if (errorDetails.contains('shipping address')) {
+          errorMessage =
+              'Please check your shipping address details and try again.';
+        } else if (errorDetails.contains('payment')) {
+          errorMessage =
+              'There was an issue with payment processing. Please try again.';
+        } else if (errorDetails.contains('network') ||
+            errorDetails.contains('connection')) {
+          errorMessage =
+              'Network connection issue. Please check your internet and try again.';
+        } else if (errorDetails.contains('cart') ||
+            errorDetails.contains('empty')) {
+          errorMessage =
+              'Your cart appears to be empty. Please add items before checkout.';
+        }
+
         showDialog(
           context: context,
           builder:
               (_) => AlertDialog(
-                title: const Text('Order Failed'),
-                content: Text(
-                  'Sorry, there was an error processing your order. Please try again.\n\nError: $error',
+                title: const Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Order Failed'),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(errorMessage),
+                    const SizedBox(height: 12),
+                    ExpansionTile(
+                      title: const Text(
+                        'Technical Details',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            errorDetails,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 actions: [
                   TextButton(
