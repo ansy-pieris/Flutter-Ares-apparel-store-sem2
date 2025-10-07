@@ -1,6 +1,8 @@
 import 'package:apparel_store/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'device_capabilities_demo.dart';
+import 'order_history_screen.dart';
+import 'cart_test_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -58,6 +60,49 @@ class ProfileScreen extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       foregroundColor: isDark ? Colors.black : Colors.white,
                       backgroundColor: isDark ? Colors.white : Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OrderHistoryScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.history),
+                    label: const Text("Order History"),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : Colors.black,
+                      backgroundColor:
+                          isDark ? Colors.green[700] : Colors.green[100],
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CartTestScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.bug_report),
+                    label: const Text("Test Cart API"),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,

@@ -135,6 +135,7 @@ class AppHome extends StatefulWidget {
 
 class _AppHomeState extends State<AppHome> {
   bool _isInitialized = false;
+  bool _wasLoggedIn = false;
 
   @override
   void initState() {
@@ -164,6 +165,13 @@ class _AppHomeState extends State<AppHome> {
         authProvider.initializeAuthState(),
         themeProvider.initializeThemeState(),
       ]);
+
+      // Initialize cart if user is logged in
+      if (authProvider.isLoggedIn) {
+        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+        await cartProvider.initializeCart();
+        debugPrint('✅ Cart initialized for logged-in user');
+      }
 
       // Initialize product data
       productProvider.initializeProducts();
@@ -212,6 +220,29 @@ class _AppHomeState extends State<AppHome> {
         debugPrint('isInitialized: ${authProvider.isInitialized}');
         debugPrint('isLoggedIn: ${authProvider.isLoggedIn}');
         debugPrint('userEmail: ${authProvider.userEmail}');
+
+        // Check if user just logged in (state change from logged out to logged in)
+        if (authProvider.isLoggedIn && !_wasLoggedIn) {
+          _wasLoggedIn = true;
+          // Initialize cart when user logs in
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final cartProvider = Provider.of<CartProvider>(
+              context,
+              listen: false,
+            );
+            cartProvider
+                .initializeCart()
+                .then((_) {
+                  debugPrint('✅ Cart initialized after login state change');
+                })
+                .catchError((error) {
+                  debugPrint('❌ Failed to initialize cart after login: $error');
+                });
+          });
+        } else if (!authProvider.isLoggedIn && _wasLoggedIn) {
+          // User logged out, clear the flag
+          _wasLoggedIn = false;
+        }
 
         // Wait for auth provider to be initialized
         if (!authProvider.isInitialized) {

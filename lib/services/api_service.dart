@@ -245,6 +245,94 @@ class ApiService {
     // Convert relative path to full URL
     return 'http://13.204.86.61/storage/$imagePath';
   }
+
+  // ==========================================
+  // CART API METHODS
+  // ==========================================
+
+  /// Get user's cart items
+  Future<ApiResponse> getCart() async {
+    return await get('/cart');
+  }
+
+  /// Get cart items count
+  Future<ApiResponse> getCartCount() async {
+    return await get('/cart/count');
+  }
+
+  /// Add item to cart
+  Future<ApiResponse> addToCart({
+    required String productId,
+    required int quantity,
+  }) async {
+    return await post(
+      '/cart/add',
+      body: {'product_id': productId, 'quantity': quantity},
+    );
+  }
+
+  /// Update cart item quantity
+  Future<ApiResponse> updateCartItem({
+    required String productId,
+    required int quantity,
+  }) async {
+    return await put(
+      '/cart/update',
+      body: {'product_id': productId, 'quantity': quantity},
+    );
+  }
+
+  /// Remove item from cart
+  Future<ApiResponse> removeFromCart(String productId) async {
+    return await delete('/cart/remove?product_id=$productId');
+  }
+
+  /// Clear entire cart
+  Future<ApiResponse> clearCart() async {
+    return await delete('/cart/clear');
+  }
+
+  // ==========================================
+  // ORDER API METHODS
+  // ==========================================
+
+  /// Create new order (checkout)
+  Future<ApiResponse> checkout({
+    required String customerName,
+    required String customerPhone,
+    required String shippingAddress,
+    required String paymentMethod,
+  }) async {
+    return await post(
+      '/checkout',
+      body: {
+        'customer_name': customerName,
+        'customer_phone': customerPhone,
+        'shipping_address': shippingAddress,
+        'payment_method': paymentMethod,
+      },
+    );
+  }
+
+  /// Get user's order history
+  Future<ApiResponse> getOrders() async {
+    return await get('/orders');
+  }
+
+  /// Get specific order details
+  Future<ApiResponse> getOrderById(String orderId) async {
+    return await get('/orders/$orderId');
+  }
+
+  /// Cancel an order
+  Future<ApiResponse> cancelOrder(String orderId) async {
+    return await put('/orders/$orderId/cancel');
+  }
+
+  /// Track order by order number
+  Future<ApiResponse> trackOrder(String orderNumber) async {
+    return await get('/track/$orderNumber');
+  }
 }
 
 /// API Response wrapper class

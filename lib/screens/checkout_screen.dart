@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../widgets/checkout_form.dart';
 import '../providers/cart_provider.dart';
 import '../providers/navigation_provider.dart';
+import '../services/api_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -13,6 +14,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isProcessingOrder = false;
+  final ApiService _apiService = ApiService();
 
   Future<void> _handleFormSubmit(
     BuildContext context,
@@ -28,30 +30,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       // Get cart information for order details
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
+      // Check if cart is empty
+      if (cartProvider.isEmpty) {
+        throw Exception('Cart is empty');
+      }
+
+      // Get total amount before clearing cart
       final totalAmount = cartProvider.totalAmount;
 
-      // Simulate order processing delay (since API endpoint doesn't exist yet)
-      await Future.delayed(const Duration(seconds: 2));
+      // Process order through API
+      final response = await _apiService.checkout(
+        customerName: name,
+        customerPhone: phone,
+        shippingAddress: address,
+        paymentMethod: paymentMethod,
+      );
 
-      // TODO: When API endpoint is available, make actual API call here:
-      // final orderData = {
-      //   'customer_name': name,
-      //   'customer_phone': phone,
-      //   'shipping_address': address,
-      //   'payment_method': paymentMethod,
-      //   'total_amount': totalAmount,
-      //   'items': cartItems.map((item) => {
-      //     'product_id': item.id,
-      //     'product_name': item.title,
-      //     'quantity': item.quantity,
-      //     'unit_price': item.price,
-      //     'total_price': item.price * item.quantity,
-      //   }).toList(),
-      // };
-      // await ApiService().post('/orders', body: orderData);
+      if (!response.success) {
+        throw Exception(response.error ?? 'Order processing failed');
+      }
 
       // Clear the cart after successful order
-      cartProvider.clearCart();
+      await cartProvider.clearCart();
 
       setState(() {
         _isProcessingOrder = false;
@@ -79,6 +80,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: 8),
                     Text('Your order has been placed successfully.'),
                     const SizedBox(height: 8),
+                    if (response.data != null &&
+                        response.data!['order_id'] != null)
+                      Text('Order ID: ${response.data!['order_id']}'),
+                    if (response.data != null &&
+                        response.data!['order_id'] != null)
+                      const SizedBox(height: 8),
                     Text('Payment Method: $paymentMethod'),
                     const SizedBox(height: 8),
                     Text('Total: Rs. ${totalAmount.toStringAsFixed(2)}'),

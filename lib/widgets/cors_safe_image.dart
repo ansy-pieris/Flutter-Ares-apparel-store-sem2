@@ -55,17 +55,31 @@ class CorsSafeImage extends StatelessWidget {
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey[400],
-                    size: 40,
+                  Flexible(
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey[400],
+                      size:
+                          (height != null && height! < 80) ? height! * 0.4 : 40,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Image blocked by CORS',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
+                  if (height == null || height! > 40) ...[
+                    const SizedBox(height: 4),
+                    Flexible(
+                      child: Text(
+                        'Image blocked',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: (height != null && height! < 80) ? 10 : 12,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );
